@@ -375,6 +375,11 @@ width: 100%;
     color: white;
     line-height: 30px;;
 }
+.form-control:disabled {
+    background-color: #0d1421;
+    opacity: 1;
+    color: #c1c1c0;
+}
 @media only screen and (max-width: 997px) {
     .hello_ai{
         font-size: 25px;
@@ -458,6 +463,10 @@ width: 100%;
     }
     .news_content_default{
         height: 100%;
+    }
+    .content_logo{
+        width: 30%;
+        left: 35%;
     }
 
 }

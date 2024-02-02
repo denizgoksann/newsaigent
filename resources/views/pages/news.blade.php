@@ -179,6 +179,17 @@ var editor = CKEDITOR.instances['news_text'];
                 });
                 setTimeout(function() {
                 }, 2000);
+            }
+            else if(response.success == "emptyEditor"){
+                Swal.fire({
+                    title: "Başarısız",
+                    text: "Editor Alanını Doldurmanız Gerekmektedir.",
+                    icon: "error",
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+                setTimeout(function() {
+                }, 2000);
             }else if(response.success == "error"){
                 Swal.fire({
                     title: "Başarısız",
@@ -189,7 +200,7 @@ var editor = CKEDITOR.instances['news_text'];
                 });
                 setTimeout(function() {
                 }, 2000);
-            }else if(response.success == "error"){
+            }else if(response.success == "system"){
                 Swal.fire({
                     title: "Başarısız",
                     text: "Yapay Zeka ile Bağlantı Sağlanamadı. Bir Daha Deneyiniz",
@@ -217,31 +228,37 @@ var editor = CKEDITOR.instances['news_text'];
             success: function(data) {
                 if (data.success) {
                     var formattedDate = formatDateTime(data.data.created_at);
+                    let dataSpot ="Doldurulmadı";
+                    let dataLocation = "Doldurulmadı";
+                    if(data.data.spot != null){
+                        let dataSpot = data.data.spot;
+                    }
+                    if(data.data.location != null){
+                        let dataLocation = data.data.location;
+                    }
+
                     $('#seeNews').append(`
-                       <form method="POST" id="newsSave">
+                       <form method="POST" id="newsSave" clss="p-3">
                         @csrf
                         <div class="d-flex justify-content-between align-items-center see_message_title mb-2">
                             <span class="last_news_see_text">${formattedDate}</span>
                         </div>
-                        <div class="d-flex justify-content-start align-items-center mb-3 p-3">
-                            <span class="last_news_see_text">${data.data.news_title}</span>
+                        <div class="mb-3 p-3">
+                            <label for="editor" class="form-label text-white">Haber Başlığı</label>
+                            <input type="text" class="form-control" disabled value="${data.data.news_title}"/>
                         </div>
-                        <div class="d-flex justify-content-start align-items-center mb-3 p-3">
-                            <span class="last_news_see_text">${data.data.spot}</span>
+                        <div class="mb-3 p-3">
+                            <label for="editor" class="form-label text-white">Spot Alanınız</label>
+                            <input type="text" class="form-control" disabled value="${dataSpot}"/>
                         </div>
-                        <div class="d-flex justify-content-start align-items-center mb-3 p-3">
-                            <span class="last_news_see_text">${data.data.location}</span>
+                        <div class="mb-3 p-3">
+                            <label for="editor" class="form-label text-white">Haber Lokasyonu</label>
+                            <input type="text" class="form-control" disabled value="${dataLocation}"/>
                         </div>
-                        <div class="d-flex justify-content-start align-items-center mb-3 p-3">
-                            <span class="last_news_see_text">${data.data.editor}</span>
+                        <div class="mb-3 p-3">
+                            <label for="editor" class="form-label text-white">Haber Editörleri</label>
+                            <input type="text" class="form-control" disabled value="${data.data.editor}"/>
                         </div>
-                        <div class="d-flex justify-content-start align-items-center p-3">
-                            <div class="ckeditor-content last_news_see_text">${data.data.news_draft}</div>
-                        </div>
-                        <div class="d-flex justify-content-start align-items-center mb-3 p-3">
-                            <span class="last_news_see_text">${data.data.uniq_words}</span>
-                        </div>
-
                         <div class="d-flex justify-content-center align-items-center p-3">
                             <input type="text" hidden id="newsID" value="${data.data.id}">
                             <textarea id="news_last" name="news_last" class="w-100">${data.data.news}</textarea>

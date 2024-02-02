@@ -34,6 +34,8 @@ class NewsController extends Controller
             return response()->json(['success' =>'uniqWords']);
         }else if(empty($news_text)){
             return response()->json(['success' =>'emptyText']);
+        }else if(empty($editor)){
+            return response()->json(['success' =>'emptyEditor']);
         }else{
          
             $news = News::create([
@@ -84,13 +86,13 @@ class NewsController extends Controller
                 ]);
 
             }catch(Exception $e){
-                return response()->json(['success' => 'error', 'response' => $response]);
+                return response()->json(['success' => 'system', 'response' => $response]);
             }
 
             if($news) {
                 return response()->json(['success' => 'success', 'response' => $response]);
             } else {
-                return response()->json(['success' => 'chat', 'response' => $response]);
+                return response()->json(['success' => 'error', 'response' => $response]);
             }
         }
        
