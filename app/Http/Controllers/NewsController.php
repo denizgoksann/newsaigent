@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\News;
 use Exception;
 use Illuminate\Http\Request;
@@ -15,11 +16,13 @@ class NewsController extends Controller
       if(Auth::check()){
         $news = News::where('user_id', Auth::user()->id)
         ->get();
-        return view('pages.news', compact('news'));
+        $category = Category::all();
+        return view('pages.news', compact('news', 'category'));
       }else{
         return view('index');
       }
     }
+    
     public function CreateNews(Request $req){
         $news_title = $req->news_title;
         $news_text = $req->news_text;
@@ -50,41 +53,38 @@ class NewsController extends Controller
             ]);
 
             $news_id = DB::getPdo()->lastInsertId();
-            try{
+            try {
                 $data = [
-                    "model" => "gpt-3.5-turbo-1106",
-                    "response_format"=> [ "type"=> "json_object" ],
-                    "messages"=> [
+                    "contents" => [
                         [
-                        "role"=> "system",
-                        "content"=> "You are a helpful assistant designed to output JSON."
-                        ],
-                        [
-                        "role"=> "user",
-                        "content"=> mb_convert_encoding($news_title , "UTF-8" , "UTF-8") . " konusunda içerisinde kesinlikle ".  mb_convert_encoding($uniq_words  , "UTF-8" , "UTF-8") . " kelimelerinin geçtiği ".strip_tags( $news_text). ' şeklinde bir en az 500 kelimeden oluşan Anadolu Ajans tarzında haber metni yaz.'
+                            "parts" => [
+                                [
+                                    "text" => "Bana Anadolu Ajans tarzında $news_title haber başlığına uygun, içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği haber metinleri yaz konusu $spot olsun her bir metin en az 200 kelime olsun ve en az 3 farklı metin metni olsun. Her metnin sonuna /++ sembolünü koy"
+                                ]
+                            ]
                         ]
                     ]
                 ];
-                $response = self::httpPost('https://api.openai.com/v1/chat/completions', $data);
-                $response = json_decode($response);
-                $chatgpt_message = '';
-                if($response){
-                    if(is_array($response->choices) && count($response->choices) > 0){
-                        $chatgpt_message = json_decode($response->choices[0]->message->content);
-                    }
+                $response = $this->gemini($data);
+
+                if (is_object($response) && isset($response->candidates[0]->content->parts)) {
+                    $parts = $response->candidates[0]->content->parts;
+                    $spotContents = array_map(function ($part) {
+                        return $part->text;
+                    }, $parts);
+            
+                    // Burada $spotContents, istediğiniz metinlerin bir dizisi olacak
+                    // Bu metinleri birleştirin veya gerektiği şekilde işleyin
+                    $spotContentString = implode(" ", $spotContents);
+            
+                    // Veritabanını güncelle
+                    News::where('id', $news_id)->update([
+                        'text' => $spotContentString
+                    ]);
+                } else {
+                    throw new Exception("Invalid response format");
                 }
-
-                $chatgpt_message_str = '';
-                foreach ($chatgpt_message as $key => $value) {
-                    $chatgpt_message_str .= $value. ',';
-                }
-
-                $chatgpt_message_str = rtrim($chatgpt_message_str, ',');
-
-                News::where('id', $news_id)->update([
-                    'news' => $chatgpt_message_str
-                ]);
-
+            
             }catch(Exception $e){
                 return response()->json(['success' => 'system', 'response' => $response]);
             }
@@ -144,7 +144,7 @@ class NewsController extends Controller
         # Setup request to send json via POST.
         $payload = json_encode( $params );
         curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
-        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
+        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
         # Return response instead of printing.
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
         # Send request.
@@ -154,11 +154,18 @@ class NewsController extends Controller
         return $result;
     }
     public function lastNew(Request $req){
-        $news = $req->news_last;
-        $newsID = $req->news_id;
+            $newsID = $req->news_id;
+            $indexID = $req->indexID - 1;
+            
+            $arrNews = News::where('id', $newsID)->first();
         
-        $update= News::where('id', $newsID)
-        ->update(['news' => $news]); 
+            $arrNewsParse = explode('/++', $arrNews->news);
+
+            $arrNewsParse[$indexID] = $req->news_last;
+
+            $arrNewsStr = implode('/++', $arrNewsParse);
+        
+            $update = News::where('id', $newsID)->update(['news' => $arrNewsStr]); 
 
         if($update){
             return response()->json(['success' => 'success']);
@@ -166,5 +173,115 @@ class NewsController extends Controller
             return response()->json(['success' => 'error']);
 
         }
+    }
+
+    public function lastNewReturn(Request $req){
+        $news_title = $req->news_title;
+        $news_text = $req->news_text;
+        $uniq_words = $req->uniq_words;
+        $spot = $req->spot;
+        $editor = $req->editor;
+        $location = $req->location;
+        $newsID = $req->newsID;
+        if(empty($news_title)){
+            return response()->json(['success' => 'emptyTitle']);
+        }else if(empty($uniq_words)){
+            return response()->json(['success' =>'uniqWords']);
+        }else if(empty($news_text)){
+            return response()->json(['success' =>'emptyText']);
+        }else if(empty($editor)){
+            return response()->json(['success' =>'emptyEditor']);
+        }else{
+            $news = News::create([
+                'user_id' => Auth::user()->id,
+                'news_title' => $news_title,
+                'news_draft' => $news_text,
+                'uniq_words' => $uniq_words,
+                'spot' => $spot,
+                'location' => $location,
+                'editor' => $editor
+            ]);
+            $news_id = DB::getPdo()->lastInsertId();
+                try {
+                    $data = [
+                        "contents" => [
+                            [
+                                "parts" => [
+                                    [
+                                        "text" => "Bana Anadolu Ajans tarzında $news_title haber başlığına uygun, içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği haber metinleri yaz konusu $news_text olsun her bir metin en az 500 kelime olsun ve en az 3 farklı metin olsun. Her metnin sonuna /++ sembolünü koy"
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ];
+                    $response = $this->gemini($data);
+
+                    if (is_object($response) && isset($response->candidates[0]->content->parts)) {
+                        $parts = $response->candidates[0]->content->parts;
+                        $spotContents = array_map(function ($part) {
+                            return $part->text;
+                        }, $parts);
+                
+                        // Burada $spotContents, istediğiniz metinlerin bir dizisi olacak
+                        // Bu metinleri birleştirin veya gerektiği şekilde işleyin
+                        $spotContentString = implode(" ", $spotContents);
+                
+                        // Veritabanını güncelle
+                        News::where('id', $news_id)->update([
+                            'news' => $spotContentString
+                        ]);
+                    } else {
+                        throw new Exception("Invalid response format");
+                    }
+                
+            }catch(Exception $e){
+                return response()->json(['success' => 'system', 'response' => $response]);
+            }
+
+            if($news) {
+                return response()->json(['success' => 'success', 'response' => $response]);
+            } else {
+                return response()->json(['success' => 'error', 'response' => $response]);
+            }
+        }
+    }
+
+
+    private function returnhttpPost($url,$params) { 
+        $ch = curl_init( $url );
+        # Setup request to send json via POST.
+        $payload = json_encode( $params );
+        curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
+        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
+        # Return response instead of printing.
+        curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+        # Send request.
+        $result = curl_exec($ch);
+        curl_close($ch);
+        # Print response.
+        return $result;
+    }
+    private function gemini($params){
+        $curl = curl_init();
+    
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyBaELhqZcBVk6fS0ppkrVnywrTK0ITBX1o',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode($params),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+    
+        $response = curl_exec($curl);
+        curl_close($curl);
+    
+        return json_decode($response);
     }
 }

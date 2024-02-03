@@ -8,11 +8,16 @@
             </div>
             <div class="col-9 menu">
                 <ul class="d-flex gap-5 justify-content-end text-end align-items-center p-4 menu-text w-100">
+                    @if (Auth::check() != 1)
                     <li><a href="{{route('index')}}" class="text-decoration-none text-white">ANA SAYFA</a></li>
                     <li><a href="{{route('index')}}/#team" class="text-decoration-none text-white">EKIBIMIZ</a></li>
                     <li><a href="{{route('index')}}/#proje" class="text-decoration-none text-white">PROJE</a></li>
-                    <li><a href="{{route('index')}}/#contact" class="text-decoration-none text-white">ILETIŞIM</a></li>
+                    <li><a href="{{route('index')}}/#contact" class="text-decoration-none text-white">ILETIŞIM</a></li>                        
+                    @endif
                     @auth
+                    <li><a href="{{route('nyt')}}" class="text-decoration-none text-white">New York Times</a></li>
+                    <li><a href="{{route('title')}}" class="text-decoration-none text-white">Haber Başlığı Oluştur</a></li>
+                    <li><a href="{{route('spot')}}" class="text-decoration-none text-white">Spot Oluştur</a></li>
                     <li><a href="{{route('news')}}" class="text-decoration-none text-white">Haber Oluştur</a></li>
                     @endauth
                     @if (auth()->check())

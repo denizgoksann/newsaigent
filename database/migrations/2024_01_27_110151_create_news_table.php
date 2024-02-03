@@ -17,7 +17,10 @@ return new class extends Migration
             $table->text('news_title');
             $table->text('uniq_words')->nullable();
             $table->text('file')->nullable();
-            $table->text('news');
+            $table->text('news')->nullable();
+            $table->text('spot')->nullable();
+            $table->text('location')->nullable();
+            $table->text('editor')->nullable();
             $table->timestamps();
         });
     }

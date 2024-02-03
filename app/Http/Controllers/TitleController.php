@@ -119,6 +119,21 @@ class TitleController extends Controller
             
             return response()->json(['success' => true, 'data' => $dataHtml]);
         }
+
+        private function httpPost($url,$params) { 
+            $ch = curl_init( $url );
+            # Setup request to send json via POST.
+            $payload = json_encode( $params );
+            curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
+            curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
+            # Return response instead of printing.
+            curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+            # Send request.
+            $result = curl_exec($ch);
+            curl_close($ch);
+            # Print response.
+            return $result;
+        }
         public function lastNew(Request $req){
             $title_draft_return = $req->title_draft_return;
             $uniq_words_return = $req->uniq_words_return;
@@ -177,6 +192,21 @@ class TitleController extends Controller
             }
         }
 
+
+        private function returnhttpPost($url,$params) { 
+            $ch = curl_init( $url );
+            # Setup request to send json via POST.
+            $payload = json_encode( $params );
+            curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
+            curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
+            # Return response instead of printing.
+            curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+            # Send request.
+            $result = curl_exec($ch);
+            curl_close($ch);
+            # Print response.
+            return $result;
+        }
         private function gemini($params){
             $curl = curl_init();
         
