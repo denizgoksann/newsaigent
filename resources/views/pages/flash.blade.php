@@ -28,17 +28,17 @@
             <form id="newsAdd" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">
-                    <label for="uniq_words" class="form-label">Spotta Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelime veya Cümleleri Giriniz</label>
+                    <label for="uniq_words" class="form-label">Flash Haberde Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelime veya Cümleleri Giriniz</label>
                     <input type="text" class="form-control" id="uniq_words" name="uniq_words">
                 </div>
                 <div class="mb-3">
-                    <label for="spot_draft" class="form-label">Spot İçin Haber Metninizi Giriniz</label>
-                    <textarea id="spot_draft" name="spot_draft" ></textarea>
+                    <label for="flash_draft" class="form-label">Flash Haber İçin Metninizi Giriniz</label>
+                    <textarea id="flash_draft" name="flash_draft" ></textarea>
 
                 </div>
                
                 <div class="d-flex justify-content-end">
-                    <button type="button" id="createNews" class="login_button text-white p-2">Spot Oluştur</button>
+                    <button type="button" id="createNews" class="login_button text-white p-2">Flash Haber Oluştur</button>
                 </div>
             </form>
 
@@ -51,12 +51,12 @@
 @section('scripts')
 <script>
    $(document).ready(() =>{
-    historyMessage()
+        historyMessage()
     // Geçmiş mesajları ajax ile çekip listelediğimiz kısım
     function historyMessage() {
         var data = {};
         $.ajax({
-            url: "{{ route('see-history-spot') }}",
+            url: "{{ route('see-history-flash') }}",
             data: data,
             method: 'post',
             success: function(response) {
@@ -64,7 +64,7 @@
             }
         });
     }
-    CKEDITOR.replace('spot_draft');
+    CKEDITOR.replace('flash_draft');
     // Ekleme Formunu ajax ile ekrana basıyoruz
     $('#addFormContentSee').click(() => {
         if($('#homeContent').hasClass('content-block')){
@@ -81,10 +81,10 @@
         newsAdd();
     });
     function newsAdd() {
-            let spot_draft = CKEDITOR.instances['spot_draft'].getData();
+            let flash_draft = CKEDITOR.instances['flash_draft'].getData();
             let uniq_words = $("#uniq_words").val();
             let formData = new FormData();
-            formData.append('spot_draft', spot_draft);
+            formData.append('flash_draft', flash_draft);
             formData.append('uniq_words', uniq_words);
             Swal.fire({
                 title: 'Yükleniyor...',
@@ -95,7 +95,7 @@
                 }
             });
             $.ajax({
-            url: '{{route("create_spot")}}',
+            url: '{{route("create_flash")}}',
             method: 'POST',
             data: formData,
             dataType: 'json',
@@ -188,14 +188,15 @@
         $('#addFormContent').removeClass('content-block').addClass('content-none');
         $('#seeNews').removeClass('content-none').addClass('content-block');
         $.ajax({
-            url: "{{ route('see-spot') }}",
+            url: "{{ route('see-flash') }}",
             data: {dataID: dataID},
             dataType: 'json',
             method: 'post',
             success: function(data) {
+                console.log(data);
                 if (data.success) {
                     var formattedDate = formatDateTime(data.data.created_at);
-                    var titleSplit = data.data.spot;
+                    var titleSplit = data.data.news;
                     var titleParse = titleSplit.split('/++');
                     var title = []; 
                     $('#seeNews').empty().append(`
@@ -205,26 +206,26 @@
                             <span class="last_news_see_text">${formattedDate}</span>
                         </div>
                         <div class="mb-3 p-3">
-                            <label class="form-label text-white">Spot Değişmez Kelimeler </label>
+                            <label class="form-label text-white">Flash Haber İçin Değişmez Kelimeler </label>
                             <input type="text" class="form-control" id="uniq_words_return" value="${data.data.uniq_words}"/>
                         </div>
                         <div class="mb-3 p-3">
-                            <label class="form-label text-white">Spot İçin Haber Metnini</label>
-                            <textarea id="spot_draft_return" name="spot_draft_return" class="w-100">${data.data.spot_draft}</textarea>
+                            <label class="form-label text-white">Flsh Haber İçin Haber Metni</label>
+                            <textarea id="flash_draft_return" name="flash_draft_return" class="w-100">${data.data.news_draft}</textarea>
                         </div>
                         <div class="mb-3 p-3 ">
-                            <label class="form-label text-white">Spotlarınız</label>
+                            <label class="form-label text-white">Flash Haberleriniz</label>
                             <div id="title_each">
                         
                             </div>
                         </div>
                         <div class="d-flex justify-content-end align-items-center mt-2 mx-2 last_news_button">
-                            <input type="text" class="form-control" hidden value="${data.data.id}" id="spotId"/>
-                            <button type="button" id="lastNews" class="login_button text-white p-2 ">Spotu Tekrar Oluştur</button>
+                            <input type="text" class="form-control" hidden value="${data.data.id}" id="flashId"/>
+                            <button type="button" id="lastNews" class="login_button text-white p-2 ">Haberi Tekrar Oluştur</button>
                         </div>
                         </form>
                     `);
-                    CKEDITOR.replace('spot_draft_return');
+                    CKEDITOR.replace('flash_draft_return');
 
                     $.each(titleParse, function(index, value){
                         var trimmedValue = $.trim(value);
@@ -236,12 +237,66 @@
                         }
                     });
 
-                    $.each(title, function(index, value){
-                        $('#title_each').append('<span class="text-white" style="font-size:20px;"> ' + value + '</span> <br><br>');
+                    $.each(titleParse, function(index, value){
+                        var trimmedValue = $.trim(value);
+                        if(trimmedValue.startsWith(',')) { 
+                            trimmedValue = trimmedValue.substring(1); 
+                        }
+                        if(trimmedValue !== "") {
+                            title.push(trimmedValue); 
+                        }
                     });
+                    $.each(title, function(index, value){
+                            var maxLength = 130;
+                        var valueS = value.length > maxLength ? value.substring(0, maxLength) + '...' : value;
+
+                        var key = index + 1;
+                        var key2 = index + 1;
+                        var key3 = index + 1;
+
+                        var modalID = "modal_" + key;
+                        var indexID = "index_" + key2;
+
+                        $('#title_each').append('<a type="button" class="text-white" style="font-size:15px; text-decoration:none;" data-bs-toggle="modal" data-bs-target="#' + modalID + '">' + valueS + '</a><br><br>');
+
+                        var modalContent = `
+                        <!-- Modal -->
+                        <div class="modal fade" id="${modalID}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form>
+                                            @csrf
+                                            <input type="text" hidden id="newsID" value="${data.data.id}">
+                                            <input type="text" hidden id="${indexID}" value="${key3}">
+                                            <textarea id="news_last_` + key3 +`"  name="news_last" class="news_last">${value}</textarea>
+                                            <input type="text"  hidden  id="news_reply" value="${value}">
+                                            
+                                            <button type="button" id="lastNews" class="login_button text-white p-2 ">Haberi Yayınla</button>
+                                            </form>
+
+                                        </div>
+                                        <div class="d-flex justify-content-end align-items-center mt-2 mx-2 last_news_button">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        $('#title_each').append(modalContent);
+
+                        CKEDITOR.replace('news_last_' + key3);
+                    });
+
                 } else {
                     console.error(data.message);
                 }
+                CKEDITOR.replace('news_last');
+
             },
         });
     });
@@ -256,103 +311,100 @@
 
         return `${day}-${month}-${year} ${hours}:${minutes}`;
     }
-    // Bu kısımda  beğenilmeyen taslağı yeniden oluşturuyorum
+    //Bu kısımda flash haberi canlıya taşıyoruz
     $(document).on('click', '#lastNews', function(e) {
         e.preventDefault(); 
         newSave();
-    });
-    function newSave() {
-        let spot_draft_return = CKEDITOR.instances['spot_draft_return'].getData();
-        let uniq_words_return = $("#uniq_words_return").val();
-        let spotId = $("#spotId").val();
-        let formData = new FormData();
-        formData.append('spot_draft_return', spot_draft_return);
-        formData.append('spotId', spotId);
-        formData.append('uniq_words_return', uniq_words_return);
-        Swal.fire({
-            title: 'Yükleniyor...',
-            html: 'Lütfen bekleyin, oluşturuluyor',
-            allowOutsideClick: false,
-            onBeforeOpen: () => {
-                Swal.showLoading()
-            }
-        });
-        $.ajax({
-            url: "{{route('last-spot')}}",
-            data: formData,
-            dataType: "json",
-            method: "POST",
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            processData: false,
-            contentType: false,
-            beforeSend: function(){
-            $('#lastNews').attr('disabled', true);
-            $('#lastNews').html('Haber Oluşturuluyor...');
-        },
-        success: function(response) {
-            console.log('CEVAP=>',response)
-            $('#lastNews').attr('disabled', false);
-            $('#lastNews').html('Haber Oluştur');
-            Swal.close();
-        if (response.success == "success") {
-            Swal.fire({
-            title: "Başarılı",
-            text: "Haber Başarıyla Gönderildi. Birazdan Yönlendirileceksiniz.",
-            icon: "success",
-            timer: 2000, 
-            showConfirmButton: false 
-        }).then(() => {
-            $('input').val("");
-            $('#historyNews').empty();
-            historyMessage();
-            setTimeout(function() {
-                $('.see_message').first().trigger('click');
-            }, 500);
-        });
+            });
 
-        }else if(response.success == "emptyTitle"){
+        function newSave() {
+
+            let news_reply = $("#news_reply").val();
+            let formData = new FormData();
+            formData.append('news_reply', news_reply);
             Swal.fire({
-                title: "Başarısız",
-                text: "Spot Başlığı Boş Olamaz",
-                icon: "error",
+                title: 'Yükleniyor...',
+                html: 'Lütfen bekleyin, oluşturuluyor',
+                allowOutsideClick: false,
+                onBeforeOpen: () => {
+                    Swal.showLoading()
+                }
+            });
+            $.ajax({
+                url: "{{route('last-flash-live')}}",
+                data: formData,
+                dataType: "json",
+                method: "POST",
+                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                processData: false,
+                contentType: false,
+                beforeSend: function(){
+                $('#lastNews').attr('disabled', true);
+                $('#lastNews').html('Haber Oluşturuluyor...');
+            },
+            success: function(response) {
+                console.log('CEVAP=>',response)
+                $('#lastNews').attr('disabled', false);
+                $('#lastNews').html('Haber Oluştur');
+                Swal.close();
+            if (response.success == "success") {
+                Swal.fire({
+                title: "Başarılı",
+                text: "Haber Başarıyla Yayınlandı.",
+                icon: "success",
                 timer: 2000, 
                 showConfirmButton: false 
+            }).then(() => {
+                $('input').val("");
+                $('#historyNews').empty();
+                historyMessage();
+                setTimeout(function() {
+                }, 500);
             });
-            setTimeout(function() {
-            }, 2000);
-        }else if(response.success == "uniqWords"){
-            Swal.fire({
-                title: "Başarısız",
-                text: "Spotta Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelimeler Boş Olamaz",
-                icon: "error",
-                timer: 2000, 
-                showConfirmButton: false 
+
+            }else if(response.success == "emptyTitle"){
+                Swal.fire({
+                    title: "Başarısız",
+                    text: "Spot Başlığı Boş Olamaz",
+                    icon: "error",
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+                setTimeout(function() {
+                }, 2000);
+            }else if(response.success == "uniqWords"){
+                Swal.fire({
+                    title: "Başarısız",
+                    text: "Spotta Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelimeler Boş Olamaz",
+                    icon: "error",
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+               
+            }else if(response.success == "error"){
+                Swal.fire({
+                    title: "Başarısız",
+                    text: "Haber Oluşturulurken Bir Hata Oluştu. Bir Daha Deneyiniz",
+                    icon: "error",
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+                setTimeout(function() {
+                }, 2000);
+            }else if(response.success == "system"){
+                Swal.fire({
+                    title: "Başarısız",
+                    text: "Yapay Zeka ile Bağlantı Sağlanamadı. Bir Daha Deneyiniz",
+                    icon: "error",
+                    timer: 2000, 
+                    showConfirmButton: false 
+                });
+                setTimeout(function() {
+                }, 2000);
+            }
+            }
             });
-            
-        }else if(response.success == "error"){
-            Swal.fire({
-                title: "Başarısız",
-                text: "Haber Oluşturulurken Bir Hata Oluştu. Bir Daha Deneyiniz",
-                icon: "error",
-                timer: 2000, 
-                showConfirmButton: false 
-            });
-            setTimeout(function() {
-            }, 2000);
-        }else if(response.success == "system"){
-            Swal.fire({
-                title: "Başarısız",
-                text: "Yapay Zeka ile Bağlantı Sağlanamadı. Bir Daha Deneyiniz",
-                icon: "error",
-                timer: 2000, 
-                showConfirmButton: false 
-            });
-            setTimeout(function() {
-            }, 2000);
         }
-        }
-        });
-    }
    });
 </script>
 @endsection

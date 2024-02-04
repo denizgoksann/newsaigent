@@ -32,6 +32,8 @@
 @endsection
 @section('scripts')
     <script>
+
+        // Bu kısımda update formunun ajax ile çalışmasını sağlıyoruz
             $('#updatePost').click(() => {
         var formData = $('#userUpdateForm').serialize();
         var csrfToken = $('meta[name="csrf-token"]').attr('content');

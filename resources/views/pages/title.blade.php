@@ -52,19 +52,20 @@
 <script>
    $(document).ready(() =>{
     historyMessage()
+    // Geçmiş mesajları ajax ile çekip listelediğimiz kısım
     function historyMessage() {
-    var data = {};
-    $.ajax({
-        url: "{{ route('see-history-title') }}",
-        data: data,
-        method: 'post',
-        success: function(response) {
-            $('#historyNews').append(response.data);
-        }
-    });
-}
-CKEDITOR.replace('title_draft');
-
+        var data = {};
+        $.ajax({
+            url: "{{ route('see-history-title') }}",
+            data: data,
+            method: 'post',
+            success: function(response) {
+                $('#historyNews').append(response.data);
+            }
+        });
+    }
+    CKEDITOR.replace('title_draft');
+    // Ekleme Formunu ajax ile ekrana basıyoruz
     $('#addFormContentSee').click(() => {
         if($('#homeContent').hasClass('content-block')){
             $('#homeContent').removeClass('content-block').addClass('content-none');
@@ -74,7 +75,7 @@ CKEDITOR.replace('title_draft');
         }
         $('#addFormContent').removeClass('content-none').addClass('content-block');
     })
-    
+    // Bu kısımda Yeni taslak için create işlemi formunu ajax ile gönderip api ile dönen sonucu ekrana basıyoruz
     $('#createNews').on('click', function(e) {
         e.preventDefault(); 
         newsAdd();
@@ -186,6 +187,7 @@ CKEDITOR.replace('title_draft');
             }
         });
     }
+    // Bu kısımda solda dökülen geçmiş dökümanlardan tıklananın orta alana basmayı sağlıyoruz
     $(document).on('click', '.see_message', function() {
         var dataID = $(this).data("id");
         $('#seeNews').empty();
@@ -211,7 +213,7 @@ CKEDITOR.replace('title_draft');
                         </div>
                         <div class="mb-2 p-3">
                             <label class="form-label text-white">Geçmesi İstenilen Kelimeler</label>
-                            <input type="text" id="uniq_words_return" class="form-control" disabled value="${data.data.uniq_words}"/>
+                            <input type="text" id="uniq_words_return" class="form-control"  value="${data.data.uniq_words}"/>
                         </div>
                         <div class="mb-3 p-3">
                             <label class="form-label text-white">Haber Başlığı İçin Haber Metni</label>
@@ -243,7 +245,7 @@ CKEDITOR.replace('title_draft');
                     });
 
                     $.each(title, function(index, value){
-                        $('#title_each').append('<span class="text-white" style="font-size:20px;">'+ ++index + ' -> ' + value + '</span> <br><br>');
+                        $('#title_each').append('<span class="text-white" style="font-size:20px;"> ' + value + '</span> <br><br>');
                     });
                     
                    
@@ -253,6 +255,7 @@ CKEDITOR.replace('title_draft');
             },
         });
     });
+    // Bu kısımda tarihi GG/AA/YYYY SS/DD şeklinde ayarlıyoruz
     function formatDateTime(dateTimeStr) {
         var date = new Date(dateTimeStr);
         var day = date.getDate().toString().padStart(2, '0');
@@ -263,102 +266,102 @@ CKEDITOR.replace('title_draft');
 
         return `${day}-${month}-${year} ${hours}:${minutes}`;
     }
+    // Bu kısımda  beğenilmeyen taslağı yeniden oluşturuyorum
     $(document).on('click', '#lastNews', function(e) {
-    e.preventDefault(); 
-    newSave();
+        e.preventDefault(); 
+        newSave();
+    });
+    function newSave() {
+        let title_draft_return = CKEDITOR.instances['title_draft_return'].getData();
+        let uniq_words_return = $("#uniq_words_return").val();
+        let titleId = $("#titleId").val();
+        let formData = new FormData();
+        formData.append('title_draft_return', title_draft_return);
+        formData.append('titleId', titleId);
+        formData.append('uniq_words_return', uniq_words_return);
+        Swal.fire({
+            title: 'Yükleniyor...',
+            html: 'Lütfen bekleyin, oluşturuluyor',
+            allowOutsideClick: false,
+            onBeforeOpen: () => {
+                Swal.showLoading()
+            }
+        });
+        $.ajax({
+            url: "{{route('last-title')}}",
+            data: formData,
+            dataType: "json",
+            method: "POST",
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            processData: false,
+            contentType: false,
+            beforeSend: function(){
+            $('#lastNews').attr('disabled', true);
+            $('#lastNews').html('Haber Oluşturuluyor...');
+        },
+        success: function(response) {
+            console.log('CEVAP=>',response)
+            $('#lastNews').attr('disabled', false);
+            $('#lastNews').html('Haber Oluştur');
+            Swal.close();
+        if (response.success == "success") {
+            Swal.fire({
+            title: "Başarılı",
+            text: "Haber Başarıyla Gönderildi. Birazdan Yönlendirileceksiniz.",
+            icon: "success",
+            timer: 2000, 
+            showConfirmButton: false 
+        }).then(() => {
+            $('input').val("");
+            $('#historyNews').empty();
+            historyMessage();
+            setTimeout(function() {
+                $('.see_message').first().trigger('click');
+            }, 500);
         });
 
-        function newSave() {
-            let title_draft_return = CKEDITOR.instances['title_draft_return'].getData();
-            let uniq_words_return = $("#uniq_words_return").val();
-            let titleId = $("#titleId").val();
-            let formData = new FormData();
-            formData.append('title_draft_return', title_draft_return);
-            formData.append('titleId', titleId);
-            formData.append('uniq_words_return', uniq_words_return);
+        }else if(response.success == "emptyTitle"){
             Swal.fire({
-                title: 'Yükleniyor...',
-                html: 'Lütfen bekleyin, oluşturuluyor',
-                allowOutsideClick: false,
-                onBeforeOpen: () => {
-                    Swal.showLoading()
-                }
-            });
-            $.ajax({
-                url: "{{route('last-title')}}",
-                data: formData,
-                dataType: "json",
-                method: "POST",
-                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                processData: false,
-                contentType: false,
-                beforeSend: function(){
-                $('#lastNews').attr('disabled', true);
-                $('#lastNews').html('Haber Oluşturuluyor...');
-            },
-            success: function(response) {
-                console.log('CEVAP=>',response)
-                $('#lastNews').attr('disabled', false);
-                $('#lastNews').html('Haber Oluştur');
-                Swal.close();
-            if (response.success == "success") {
-                Swal.fire({
-                title: "Başarılı",
-                text: "Haber Başarıyla Gönderildi. Birazdan Yönlendirileceksiniz.",
-                icon: "success",
+                title: "Başarısız",
+                text: "Spot Başlığı Boş Olamaz",
+                icon: "error",
                 timer: 2000, 
                 showConfirmButton: false 
-            }).then(() => {
-                $('input').val("");
-                $('#historyNews').empty();
-                historyMessage();
-                setTimeout(function() {
-                    $('.see_message').first().trigger('click');
-                }, 500);
             });
-
-            }else if(response.success == "emptyTitle"){
-                Swal.fire({
-                    title: "Başarısız",
-                    text: "Spot Başlığı Boş Olamaz",
-                    icon: "error",
-                    timer: 2000, 
-                    showConfirmButton: false 
-                });
-                setTimeout(function() {
-                }, 2000);
-            }else if(response.success == "uniqWords"){
-                Swal.fire({
-                    title: "Başarısız",
-                    text: "Spotta Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelimeler Boş Olamaz",
-                    icon: "error",
-                    timer: 2000, 
-                    showConfirmButton: false 
-                });
-               
-            }else if(response.success == "error"){
-                Swal.fire({
-                    title: "Başarısız",
-                    text: "Haber Oluşturulurken Bir Hata Oluştu. Bir Daha Deneyiniz",
-                    icon: "error",
-                    timer: 2000, 
-                    showConfirmButton: false 
-                });
-                setTimeout(function() {
-                }, 2000);
-            }else if(response.success == "system"){
-                Swal.fire({
-                    title: "Başarısız",
-                    text: "Yapay Zeka ile Bağlantı Sağlanamadı. Bir Daha Deneyiniz",
-                    icon: "error",
-                    timer: 2000, 
-                    showConfirmButton: false 
-                });
-                setTimeout(function() {
-                }, 2000);
-            }
-            }
+            setTimeout(function() {
+            }, 2000);
+        }else if(response.success == "uniqWords"){
+            Swal.fire({
+                title: "Başarısız",
+                text: "Spotta Kullanılmasını ve Kesinlikle Değiştirilmesini İstemediğiniz Kelimeler Boş Olamaz",
+                icon: "error",
+                timer: 2000, 
+                showConfirmButton: false 
             });
+            
+        }else if(response.success == "error"){
+            Swal.fire({
+                title: "Başarısız",
+                text: "Haber Oluşturulurken Bir Hata Oluştu. Bir Daha Deneyiniz",
+                icon: "error",
+                timer: 2000, 
+                showConfirmButton: false 
+            });
+            setTimeout(function() {
+            }, 2000);
+        }else if(response.success == "system"){
+            Swal.fire({
+                title: "Başarısız",
+                text: "Yapay Zeka ile Bağlantı Sağlanamadı. Bir Daha Deneyiniz",
+                icon: "error",
+                timer: 2000, 
+                showConfirmButton: false 
+            });
+            setTimeout(function() {
+            }, 2000);
+        }
+        }
+        });
         }
    });
 </script>
