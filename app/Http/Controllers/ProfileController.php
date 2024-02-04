@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\Hash;
 
 class ProfileController extends Controller
 {
+    // Bu kısım kullanıcının kendi profil ayarları sayfasını görmesi için hazırlanan fonksiyon
     public function show(){
         $user = User::where('id', Auth::user()->id);
         return view('pages.profil', compact('user'));
     }
-
+    // Bu kısımda kullanıcı kendi profilinin ayarlarını değiştirebilmesini sağlayan fonksiyon
     public function userUpdate(Request $request){
         $name = $request->name;
         $email = $request->email;

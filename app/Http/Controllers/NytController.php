@@ -7,10 +7,11 @@ use Illuminate\Http\Request;
 class NytController extends Controller
 {
 
+    // Bu kısım Newyork Times'dan gelen verileri çekmemizi ve nyt sayfasına yönlendirmemizi sağlayan api
     public function NytShow(){
         $curl = curl_init();
         curl_setopt_array($curl, array(
-        CURLOPT_URL => '',
+        CURLOPT_URL => 'https://api.nytimes.com/svc/news/v3/content/nyt/world.json?api-key=21rIPFc4Qlb84VAu79YUjwygL9WtwqYj',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_ENCODING => '',
         CURLOPT_MAXREDIRS => 10,

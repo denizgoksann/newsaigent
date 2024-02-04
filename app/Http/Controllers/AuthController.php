@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    // Burda Kayıt Olduruyoruz
     public function register(Request $request)
     {
         $name = $request->name;
@@ -59,6 +60,8 @@ class AuthController extends Controller
             ]);
         }
     }
+
+    // Burda giriş kontrollerini yaptırıyoruz
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');

@@ -17,5 +17,9 @@ class News extends Model
         'editor',
         'location',
         'spot',
+        'category_id',
+        'bultein_id',
+        'new_style_id',
+        'durum',
     ];
 }

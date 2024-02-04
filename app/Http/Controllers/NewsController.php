@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bultein;
 use App\Models\Category;
 use App\Models\News;
+use App\Models\NewStyle;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,18 +13,20 @@ use Illuminate\Support\Facades\DB;
 
 class NewsController extends Controller
 {
-
+    // Burda Eğer kullanıcı giriş yapmışsa desifre veritabınından kendi datasına ait verileri görecek şekilde desifre sayfasına yolluyoruz
     public function NewsShow(){
       if(Auth::check()){
         $news = News::where('user_id', Auth::user()->id)
         ->get();
         $category = Category::all();
-        return view('pages.news', compact('news', 'category'));
+        $bulten = Bultein::all();
+        $style = NewStyle::where('durum', 1)->get();
+        return view('pages.news', compact('news', 'category', 'bulten', 'style'));
       }else{
         return view('index');
       }
     }
-    
+    // Burda formdan gelen veriyi kontrolden geçirip api bağlantısı ile Geminiye gönderip cevap alıp bunu geri kullanıcı ekranına gönderiyoruz
     public function CreateNews(Request $req){
         $news_title = $req->news_title;
         $news_text = $req->news_text;
@@ -30,40 +34,60 @@ class NewsController extends Controller
         $spot = $req->spot;
         $editor = $req->editor;
         $location = $req->location;
+        $category_id = $req->category_id;
+        $bultein_id = $req->bultein_id;
+        $new_style_id = $req->new_style_id;
+
         
-        if(empty($news_title)){
-            return response()->json(['success' => 'emptyTitle']);
+        if(empty($news_text)){
+            return response()->json(['success' => 'emptyText']);
         }else if(empty($uniq_words)){
             return response()->json(['success' =>'uniqWords']);
-        }else if(empty($news_text)){
-            return response()->json(['success' =>'emptyText']);
-        }else if(empty($editor)){
-            return response()->json(['success' =>'emptyEditor']);
         }else{
-         
             $news = News::create([
                 'user_id' => Auth::user()->id,
+                'news_draft' => $news_text,
                 'news_title' => $news_title,
-                'news_draft' => $news_text,
                 'uniq_words' => $uniq_words,
-                'news_draft' => $news_text,
                 'spot' => $spot,
+                'editor' => $editor,
                 'location' => $location,
-                'editor' => $editor
+                'category_id' => $category_id,
+                'bultein_id' => $bultein_id,
+                'new_style_id' => $new_style_id,
             ]);
 
             $news_id = DB::getPdo()->lastInsertId();
-            try {
+            try{
                 $data = [
                     "contents" => [
                         [
                             "parts" => [
                                 [
-                                    "text" => "Bana Anadolu Ajans tarzında $news_title haber başlığına uygun, içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği haber metinleri yaz konusu $spot olsun her bir metin en az 200 kelime olsun ve en az 3 farklı metin metni olsun. Her metnin sonuna /++ sembolünü koy"
+                                    "text" => "içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği $news_text Verilen bu metinden Anadolu Ajansı formatında, metnin önemli kısmı başlıktan hemen sonra gelecek şekilde, hiçbir duygudan bahsetmeyen 3 haber oluştur. haberin en başında noktalama işareti kullanma ve her metnin sonuna /++ sembolü koy"
                                 ]
                             ]
                         ]
-                    ]
+                                ],
+                    "safetySettings" => [
+                        [
+                            "category" => "HARM_CATEGORY_DANGEROUS_CONTENT",
+                            "threshold" => "BLOCK_NONE"
+                        ],
+                        [
+                            "category" => "HARM_CATEGORY_HATE_SPEECH",
+                            "threshold" => "BLOCK_NONE"
+                        ],
+                        [
+                            "category" => "HARM_CATEGORY_HARASSMENT",
+                            "threshold" => "BLOCK_NONE"
+                        ],
+                        [
+                            "category" => "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                            "threshold" => "BLOCK_NONE"
+                        ],
+        ],
+
                 ];
                 $response = $this->gemini($data);
 
@@ -79,12 +103,11 @@ class NewsController extends Controller
             
                     // Veritabanını güncelle
                     News::where('id', $news_id)->update([
-                        'text' => $spotContentString
+                        'news' => $spotContentString
                     ]);
                 } else {
                     throw new Exception("Invalid response format");
                 }
-            
             }catch(Exception $e){
                 return response()->json(['success' => 'system', 'response' => $response]);
             }
@@ -97,11 +120,17 @@ class NewsController extends Controller
         }
        
     }
-
+    // Burda tıklanan dataya erişim sağlatıyoruz
     public function seeMessage(Request $req){
-        $data = News::where('id', $req->dataID)->first();
+        $data = News::leftJoin('categories', 'news.category_id', '=', 'categories.id')
+        ->leftJoin('bulteins', 'news.bultein_id', '=', 'bulteins.id')
+        ->leftJoin('new_styles', 'news.new_style_id', '=', 'new_styles.id')
+        ->where('news.id', $req->dataID)
+        ->select('news.*', 'categories.category_name', 'bulteins.bultein_name', 'new_style', 'categories.id')
+        ->first();
         return response()->json(['success' => true, 'data' => $data]);
     }
+    // Burda kullanıcıya ait geçmiş dataları listeliyoruz. Görüntü kirliliğini önlemek için 50 karakterden fazla ise sonunu 50 den itibaren kesip sonuna'...' ekliyoruz
     public function historyNews() {
         $news = News::where('user_id', Auth::user()->id)
         ->where('news', '!=', '')
@@ -109,11 +138,23 @@ class NewsController extends Controller
         ->get();
             $dataHtml = "";
             foreach ($news as $item) {
+                $titleParse = "";
+                if(empty($item->news_title))
+                {
+                    $titleParse = 'Doldurulmadı';
+                }else{
+                    if(strlen($item->news_title) > 50){
+                        $titleParse .= mb_convert_encoding( substr($item->news_title, 0, 50) . '...' ,  "UTF-8" , "UTF-8");
+                    }else{
+                        $titleParse = $item->news_title;
+                    }
+                }
+             
                 $dataHtml .= '
                     <div class="d-flex flex-column see_message p-2 mb-2" data-id="'.$item->id.'">
                         <div class="news_history_content">
                             <div class="d-flex justify-content-between align-items-center w-100 p-1 ">
-                                <span class="news_history_content_title">'.$item->news_title.'</span>
+                                <span class="news_history_content_title">'.$titleParse.'</span>
                                 <span class="news_time">'.$item->created_at.'</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center w-100 p-1">
@@ -138,43 +179,7 @@ class NewsController extends Controller
         
         return response()->json(['success' => true, 'data' => $dataHtml]);
     }
-
-    private function httpPost($url,$params) { 
-        $ch = curl_init( $url );
-        # Setup request to send json via POST.
-        $payload = json_encode( $params );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
-        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
-        # Return response instead of printing.
-        curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-        # Send request.
-        $result = curl_exec($ch);
-        curl_close($ch);
-        # Print response.
-        return $result;
-    }
-    public function lastNew(Request $req){
-            $newsID = $req->news_id;
-            $indexID = $req->indexID - 1;
-            
-            $arrNews = News::where('id', $newsID)->first();
-        
-            $arrNewsParse = explode('/++', $arrNews->news);
-
-            $arrNewsParse[$indexID] = $req->news_last;
-
-            $arrNewsStr = implode('/++', $arrNewsParse);
-        
-            $update = News::where('id', $newsID)->update(['news' => $arrNewsStr]); 
-
-        if($update){
-            return response()->json(['success' => 'success']);
-        }else{
-            return response()->json(['success' => 'error']);
-
-        }
-    }
-
+    // Burda oluşturulan metinleri beğenmeyen kullanıcını yeniden oluştur butonuna basması sonucun mevcutta bastığı id 'li datanın kayıtlı verilerini tekrar Gemine ile yeniden oluşturup kullanıcı ekranına basıyoruz
     public function lastNewReturn(Request $req){
         $news_title = $req->news_title;
         $news_text = $req->news_text;
@@ -182,10 +187,11 @@ class NewsController extends Controller
         $spot = $req->spot;
         $editor = $req->editor;
         $location = $req->location;
+        $category_id = $req->category_id;
+        $new_style_id = $req->new_style_id;
+        $bultein_id = $req->bultein_id;
         $newsID = $req->newsID;
-        if(empty($news_title)){
-            return response()->json(['success' => 'emptyTitle']);
-        }else if(empty($uniq_words)){
+        if(empty($uniq_words)){
             return response()->json(['success' =>'uniqWords']);
         }else if(empty($news_text)){
             return response()->json(['success' =>'emptyText']);
@@ -199,7 +205,10 @@ class NewsController extends Controller
                 'uniq_words' => $uniq_words,
                 'spot' => $spot,
                 'location' => $location,
-                'editor' => $editor
+                'editor' => $editor,
+                'category_id' => $category_id,
+                'new_style_id' => $new_style_id,
+                'bultein_id' => $bultein_id,
             ]);
             $news_id = DB::getPdo()->lastInsertId();
                 try {
@@ -208,7 +217,7 @@ class NewsController extends Controller
                             [
                                 "parts" => [
                                     [
-                                        "text" => "Bana Anadolu Ajans tarzında $news_title haber başlığına uygun, içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği haber metinleri yaz konusu $news_text olsun her bir metin en az 500 kelime olsun ve en az 3 farklı metin olsun. Her metnin sonuna /++ sembolünü koy"
+                                        "text" => "içinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği $news_text Verilen bu metinden Anadolu Ajansı formatında, metnin önemli kısmı başlıktan hemen sonra gelecek şekilde, hiçbir duygudan bahsetmeyen 3 yeni haber oluştur. haberin en başında noktalama işareti kullanma ve her metnin sonuna /++ sembolü koy"
                                     ]
                                 ]
                             ]
@@ -244,28 +253,45 @@ class NewsController extends Controller
                 return response()->json(['success' => 'error', 'response' => $response]);
             }
         }
-    }
+    }    
+    // Haberi en son canlıya alıyoruz bu kısımda da 
+    public function lastNew(Request $req){
+            $news=$req->news_reply;
+            $news_title=$req->news_title_reply;
+            $bultein_id=$req->bultein_id;
+            $new_style_id=$req->new_style_id;
+            $category_id=$req->category_id;
+            $spot=$req->spot_reply;
+            $editor=$req->editor_reply;
+            $location=$req->location;
 
+        
+            $update = News::create([
+                'user_id' => Auth::user()->id,
+                'news' => $news,
+                'news_title' => $news_title,
+                'spot' => $spot,
+                'editor' => $editor,
+                'category_id' => $category_id,
+                'bultein_id' => $bultein_id,
+                'new_style_id' => $new_style_id,
+                'location' => $location,
+                'durum' => "1" ,
+            ]);
 
-    private function returnhttpPost($url,$params) { 
-        $ch = curl_init( $url );
-        # Setup request to send json via POST.
-        $payload = json_encode( $params );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $payload );
-        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json' , 'Authorization:Bearer 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'));
-        # Return response instead of printing.
-        curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-        # Send request.
-        $result = curl_exec($ch);
-        curl_close($ch);
-        # Print response.
-        return $result;
+        if($update){
+            return response()->json(['success' => 'success']);
+        }else{
+            return response()->json(['success' => 'error']);
+
+        }
     }
+    // Burası gemini api entegrasyonu
     private function gemini($params){
         $curl = curl_init();
     
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyBaELhqZcBVk6fS0ppkrVnywrTK0ITBX1o',
+            CURLOPT_URL => '$API_KEY',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,

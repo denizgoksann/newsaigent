@@ -2,40 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Spot;
+use App\Models\Category;
+use App\Models\Desifre;
+use App\Models\News;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class SpotController extends Controller
+
+class DesifreController extends Controller
 {
     // Burda Eğer kullanıcı giriş yapmışsa desifre veritabınından kendi datasına ait verileri görecek şekilde desifre sayfasına yolluyoruz
-    public function SpotShow(){
-        if(Auth::check()){
 
-            $news = Spot::where('user_id', Auth::user()->id)
+    public function DesifreShow(){
+        if(Auth::check()){
+            $news = Desifre::where('user_id', Auth::user()->id)
             ->get();
-            return view('pages.spot', compact('news'));
+           
+            return view('pages.desifre', compact('news'));
           }else{
             return view('index');
           }
     }
     // Burda formdan gelen veriyi kontrolden geçirip api bağlantısı ile Geminiye gönderip cevap alıp bunu geri kullanıcı ekranına gönderiyoruz
     public function CreateNews(Request $req){
-        $spot_draft = $req->spot_draft;
-        $uniq_words = $req->uniq_words;
+        $desifre_draft = $req->desifre_draft;
 
         
-        if(empty($spot_draft)){
+        if(empty($desifre_draft)){
             return response()->json(['success' => 'emptyTitle']);
-        }else if(empty($uniq_words)){
-            return response()->json(['success' =>'uniqWords']);
         }else{
-            $news = Spot::create([
+            $news = Desifre::create([
                 'user_id' => Auth::user()->id,
-                'spot_draft' => $spot_draft,
-                'uniq_words' => $uniq_words,
+                'desifre_draft' => $desifre_draft,
             ]);
 
             $news_id = DB::getPdo()->lastInsertId();
@@ -45,7 +45,7 @@ class SpotController extends Controller
                         [
                             "parts" => [
                                 [
-                                    "text" => "İçinde kesinlikle $uniq_words kelimelerinin her birinin geçtiği \"$spot_draft\" Verilen bu haberi Anadolu Ajansı kuralları ve standartları çerçevesinde 3 tane haber spotu öner. Her metnin sonuna /++ sembolünü koy"
+                                    "text" =>"$desifre_draft\"Verilen bu kapalı senaryoyu  Anadolu Ajansı formatında, kesinlikle hiçbir kelime çıkartılmamış ve hiçbir duygudan bahsetmeyen uzun bir deşifre haberi oluştur."
                                 ]
                             ]
                         ]
@@ -83,8 +83,8 @@ class SpotController extends Controller
                     $spotContentString = implode(" ", $spotContents);
             
                     // Veritabanını güncelle
-                    Spot::where('id', $news_id)->update([
-                        'spot' => $spotContentString
+                    Desifre::where('id', $news_id)->update([
+                        'desifre' => $spotContentString
                     ]);
                 } else {
                     throw new Exception("Invalid response format");
@@ -103,13 +103,13 @@ class SpotController extends Controller
     }
     // Burda tıklanan dataya erişim sağlatıyoruz
     public function seeMessage(Request $req){
-        $data = Spot::where('id', $req->dataID)->first();
+        $data = Desifre::where('id', $req->dataID)->first();
         return response()->json(['success' => true, 'data' => $data]);
     }
     // Burda kullanıcıya ait geçmiş dataları listeliyoruz. Görüntü kirliliğini önlemek için 50 karakterden fazla ise sonunu 50 den itibaren kesip sonuna'...' ekliyoruz
     public function historyNews() {
-        $news = Spot::where('user_id', Auth::user()->id)
-        ->where('spot', '!=', '')
+        $news = Desifre::where('user_id', Auth::user()->id)
+        ->where('desifre', '!=', '')
         ->orderBy('created_at', 'desc')
         ->get();
             $dataHtml = "";
@@ -123,11 +123,11 @@ class SpotController extends Controller
                             <div class="d-flex justify-content-between align-items-center w-100 p-1">
                                 <span class="news_content_text">';
 
-                            if($item->spot){
-                                if(strlen($item->spot) > 50) {
-                                    $dataHtml .= mb_convert_encoding( substr($item->spot, 0, 30) . '...' ,  "UTF-8" , "UTF-8");
+                            if($item->desifre){
+                                if(strlen($item->desifre) > 50) {
+                                    $dataHtml .= mb_convert_encoding( substr($item->desifre, 0, 30) . '...' ,  "UTF-8" , "UTF-8");
                                 } else {
-                                    $dataHtml .= $item->title;
+                                    $dataHtml .= $item->desifre;
                                 }
                             }else{
                                 $dataHtml .=  '';
@@ -145,18 +145,13 @@ class SpotController extends Controller
     // Burda oluşturulan metinleri beğenmeyen kullanıcını yeniden oluştur butonuna basması sonucun mevcutta bastığı id 'li datanın kayıtlı verilerini tekrar Gemine ile yeniden oluşturup kullanıcı ekranına basıyoruz
     public function lastNew(Request $req){
         if(isset($_POST)){
-        $spot_draft_return = $req->spot_draft_return;
-        $uniq_words_return = $req->uniq_words_return;
-        $spotID = $req->spotID;
-        if(empty($spot_draft_return)){
+        $desifre_draft_return = $req->desifre_draft_return;
+        if(empty($desifre_draft_return)){
             return response()->json(['success' => 'emptyTitle']);
-        }else if(empty($uniq_words_return)){
-            return response()->json(['success' =>'uniqWords']);
         }else{
-            $news = Spot::create([
+            $news = Desifre::create([
                 'user_id' => Auth::user()->id,
-                'spot_draft' => $spot_draft_return,
-                'uniq_words' => $uniq_words_return,
+                'desifre_draft' => $desifre_draft_return,
             ]);
             $news_id = DB::getPdo()->lastInsertId();
             try {
@@ -165,8 +160,8 @@ class SpotController extends Controller
                         [
                             "parts" => [
                                 [
-                                    "text" => "İçinde kesinlikle $uniq_words_return kelimelerinin her birinin geçtiği \"$spot_draft_return\" Verilen bu haberi Anadolu Ajansı kuralları ve standartları çerçevesinde 3 tane yeni haber spotu öner. Her metnin sonuna /++ sembolünü koy"
-                                ]
+                                    "text" =>"$desifre_draft_return\"Verilen bu kapalı senaryoyu  Anadolu Ajansı formatında, kesinlikle hiçbir kelime çıkartılmamış ve hiçbir duygudan bahsetmeyen uzun yeni bir deşifre haberi oluştur."
+                                    ]
                             ]
                         ]
                                 ],
@@ -205,8 +200,8 @@ class SpotController extends Controller
                     $spotContentString = implode(" ", $spotContents);
             
                     // Veritabanını güncelle
-                    Spot::where('id', $news_id)->update([
-                        'spot' => $spotContentString
+                    Desifre::where('id', $news_id)->update([
+                        'desifre' => $spotContentString
                     ]);
                 } else {
                     throw new Exception("Invalid response format");
@@ -222,6 +217,25 @@ class SpotController extends Controller
                 return response()->json(['success' => 'error', 'response' => $response]);
             }
         }
+        }
+    }
+    // Haberi en son canlıya alıyoruz bu kısımda da 
+    public function lastNewLive(Request $req){
+        $news=$req->desifre_reply;
+        
+        $update = Desifre::create([
+            'user_id' => Auth::user()->id,
+            'desifre' => $news,
+            'desifre_title' =>   "DEŞİFRE HABER",
+            'active' => '1',
+
+        ]);
+
+    if($update){
+        return response()->json(['success' => 'success']);
+    }else{
+        return response()->json(['success' => 'error']);
+
         }
     }
     // Burası gemini api entegrasyonu
