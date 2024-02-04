@@ -21,6 +21,9 @@ return new class extends Migration
             $table->text('spot')->nullable();
             $table->text('location')->nullable();
             $table->text('editor')->nullable();
+            $table->text('category_id');
+            $table->text('bultein_id');
+            $table->text('new_style_id');
             $table->timestamps();
         });
     }
