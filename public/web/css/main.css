@@ -380,6 +380,9 @@ width: 100%;
     opacity: 1;
     color: #c1c1c0;
 }
+.cat_list{
+    width: 30% !important;
+}
 @media only screen and (max-width: 997px) {
     .hello_ai{
         font-size: 25px;
@@ -430,6 +433,9 @@ width: 100%;
     }
     .gif-div{
         display: none;
+    }
+    .cat_list{
+        width: 100% !important;
     }
     .slide-container{
     flex-direction: column;
